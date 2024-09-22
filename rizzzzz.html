@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lixus Miner</title>
+    <style>
+        body {
+            background-color: #121212; /* Black background for a sleek look */
+            color: #ffffff; /* White text for contrast */
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 20px;
+            position: relative;
+            min-height: 100vh; /* Ensure footer stays at the bottom */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        header {
+            background-color: #1e1e1e; /* Slightly lighter black for header */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* Stronger shadow for depth */
+        }
+        h1 {
+            font-size: 2.5em;
+            margin: 0;
+        }
+        p {
+            font-size: 1.2em;
+            margin: 10px 0 20px;
+        }
+        .coin-display {
+            font-size: 2em;
+            margin: 20px 0;
+        }
+        .start-button {
+            background-color: #4CAF50; /* Green button for action */
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1.5em;
+            margin: 20px 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s; /* Smooth transition */
+        }
+        .start-button:hover {
+            background-color: #45a049; /* Darker green on hover */
+        }
+        footer {
+            background-color: #1e1e1e; /* Dark footer for consistency */
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: auto; /* Push footer to the bottom */
+        }
+        #myChart {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        /* Sidebar styles */
+        .sidebar {
+            position: fixed;
+            top: 50%;
+            left: -220px; /* Hidden by default */
+            width: 200px;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 10px;
+            transition: left 0.3s; /* Smooth slide in */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            transform: translateY(-50%); /* Center vertically */
+        }
+        .sidebar h3 {
+            margin: 0 0 10px;
+        }
+        .arrow {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            background-color: #4CAF50; /* Green for the arrow button */
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transform: translateY(-50%); /* Center the button vertically */
+            transition: background-color 0.3s;
+        }
+        .arrow:hover {
+            background-color: #45a049; /* Darker green on hover */
+        }
+        .notification {
+            display: none;
+            background-color: #4CAF50; /* Green background */
+            color: white;
+            padding: 15px;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 5px;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Lixus Crypto Miner</h1>
+        <p>Earn 0.50 Lixus coins for every minute you spend mining!</p>
+    </header>
+
+    <div class="coin-display" id="coinAmount">Lixus Coins: 0.00</div>
+    
+    <button class="start-button" id="startButton">Start Mining</button>
+
+    <canvas id="myChart"></canvas>
+
+    <div class="sidebar" id="sidebar">
+        <h3>Login / Signup</h3>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button id="loginButton">Login</button>
+        <button id="signupButton">Signup</button>
+    </div>
+
+    <button class="arrow" id="arrowButton">&#9654;</button> <!-- Right arrow -->
+
+    <footer>
+        <p>Lixus Miner is un-task taken. It's a site that can be run in the background. It's a discount coin for the Gem Market.</p>
+    </footer>
+
+    <div class="notification" id="notification">Welcome Back!</div>
+
+    <script>
+        let coins = 0;
+        let miningInterval;
+        let miningProgress = 0; // Track mining progress
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 10 }, (_, i) => i + 1), // Last 10 minutes
+                datasets: [{
+                    label: 'Mining Progress',
+                    data: Array(10).fill(0), // Initial data
+                    borderColor: 'rgba(76, 175, 80, 1)',
+                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 5, // Max coins to display
+                    }
+                }
+            }
+        });
+
+        // Load coins from local storage if user is logged in
+        function loadCoins(username) {
+            const savedCoins = localStorage.getItem(username);
+            if (savedCoins) {
+                coins = parseFloat(savedCoins);
+                document.getElementById('coinAmount').innerText = `Lixus Coins: ${coins.toFixed(2)}`;
+                alert(`Your previous coins: ${coins.toFixed(2)}`);
+            } else {
+                document.getElementById('coinAmount').innerText = 'Lixus Coins: 0.00'; // Reset if no coins
+            }
+        }
+
+        // Save coins to local storage
+        function saveCoins(username) {
+            localStorage.setItem(username, coins);
+        }
+
+        document.getElementById('startButton').addEventListener('click', function() {
+            if (!miningInterval) {
+                miningInterval = setInterval(() => {
+                    coins += 0.50;
+                    miningProgress += 0.50; // Increase mining progress
+                    document.getElementById('coinAmount').innerText = `Lixus Coins: ${coins.toFixed(2)}`;
+                    
+                    // Update chart data
+                    myChart.data.datasets[0].data.shift(); // Remove the oldest data point
+                    myChart.data.datasets[0].data.push(miningProgress); // Add new progress
+                    myChart.update();
+                }, 60000); // 60000 milliseconds = 1 minute
+                this.innerText = "Mining... Click to Stop";
+            } else {
+                clearInterval(miningInterval);
+                miningInterval = null;
+                this.innerText = "Start Mining";
+
+                // Save coins to local storage when mining stops
+                const username = document.getElementById('username').value;
+                if (username) {
+                    saveCoins(username);
+                }
+                
+                // Decrease mining progress when not mining
+                const decreaseProgress = setInterval(() => {
+                    if (miningProgress > 0) {
+                        miningProgress -= 0.10; // Decrease progress
+                        myChart.data.datasets[0].data.shift(); // Remove the oldest data point
+                        myChart.data.datasets[0].data.push(miningProgress); // Add new progress
+                        myChart.update();
+                    } else {
+                        clearInterval(decreaseProgress); // Stop decreasing when it reaches 0
+                    }
+                }, 60000); // Decrease every minute
+            }
+        });
+
+        document.getElementById('loginButton').addEventListener('click', function() {
+            const username = document.getElementById('username').value;
+
+            // Load the coins from local storage
+            loadCoins(username);
+            alert(`Welcome back, ${username}! Your coins have been loaded.`);
+
+            // Show custom notification
+            const notification = document.getElementById('notification');
+            notification.style.display = 'block';
+            notification.style.opacity = '1';
+
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 500); // Wait for fade-out transition
+            }, 3000); // Display for 3 seconds
+        });
+
+        document.getElementById('signupButton').addEventListener('click', function() {
+            const username = document.getElementById('username').value;
+
+            // Save the coins to local storage
+            saveCoins(username);
+            alert(`Account created for ${username}! Your coins are saved.`);
+        });
+
+        // Sidebar and arrow button functionality
+        const arrowButton = document.getElementById('arrowButton');
+        const sidebar = document.getElementById('sidebar');
+
+        arrowButton.addEventListener('mouseenter', function() {
+            sidebar.style.left = '0'; // Show sidebar
+        });
+
+        arrowButton.addEventListener('mouseleave', function() {
+            if (!sidebar.matches(':hover')) {
+                sidebar.style.left = '-220px'; // Hide sidebar
+            }
+        });
+
+        sidebar.addEventListener('mouseenter', function() {
+            sidebar.style.left = '0'; // Keep sidebar visible
+        });
+
+        sidebar.addEventListener('mouseleave', function() {
+            sidebar.style.left = '-220px'; // Hide sidebar
+        });
+    </script>
+</body>
+</html>
